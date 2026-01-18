@@ -254,11 +254,9 @@ class TwinWavePlayer {
     }
 
     _base64ToFloat32(base64) {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
+        // Efficient base64 to Float32Array conversion using Uint8Array.from
+        const binaryString = atob(base64);
+        const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
         return new Float32Array(bytes.buffer);
     }
 
