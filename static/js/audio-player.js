@@ -55,6 +55,11 @@ class TwinWavePlayer {
         this._setStatus('Connecting...', 'Establishing WebSocket connection');
         
         try {
+            // Check if Socket.IO is loaded
+            if (typeof io === 'undefined') {
+                throw new Error('Socket.IO library not loaded. Please check your network connection.');
+            }
+            
             // Initialize Audio Context
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
                 sampleRate: 44100,
