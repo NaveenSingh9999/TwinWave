@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TwinWave - {{ channel|upper }} Speaker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, 
+                {% if channel == 'left' %}#1a1a2e 0%, #0a3d62 100%{% else %}#1a1a2e 0%, #0d3d2e 100%{% endif %});
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .channel-badge {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 25px;
+            background: {% if channel == 'left' %}#00d9ff{% else %}#00ff88{% endif %};
+            color: #000;
+            font-weight: 700;
+            font-size: 1.2rem;
+            border-radius: 25px;
+        }
+
+        .status-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .status-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+
+        .status-text {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .status-detail {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .visualizer {
+            width: 100%;
+            max-width: 300px;
+            height: 100px;
+            margin: 20px 0;
+        }
+
+        .visualizer-bar {
+            fill: {% if channel == 'left' %}#00d9ff{% else %}#00ff88{% endif %};
+            transition: height 0.05s ease;
+        }
+
+        .stats {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: {% if channel == 'left' %}#00d9ff{% else %}#00ff88{% endif %};
+        }
+
+        .sync-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sync-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #888;
+        }
+
+        .sync-dot.synced {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .sync-dot.connecting {
+            background: #ffcc00;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .wake-lock-btn {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            color: #fff;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .volume-control {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .volume-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: {% if channel == 'left' %}#00d9ff{% else %}#00ff88{% endif %};
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="channel-badge">{{ channel|upper }} SPEAKER</div>
+
+    <button class="wake-lock-btn" id="wakeLockBtn">🔒 Keep Awake</button>
+
+    <div class="status-container">
+        <div class="status-icon" id="statusIcon">📱</div>
+        <div class="status-text" id="statusText">Connecting...</div>
+        <div class="status-detail" id="statusDetail">Waiting for server</div>
+    </div>
+
+    <svg class="visualizer" id="visualizer">
+        <!-- Bars will be added dynamically -->
+    </svg>
+
+    <div class="stats">
+        <div class="stat-row">
+            <span class="stat-label">Latency</span>
+            <span class="stat-value" id="latency">-- ms</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Buffer</span>
+            <span class="stat-value" id="buffer">-- ms</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Frame</span>
+            <span class="stat-value" id="frame">#0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Drift</span>
+            <span class="stat-value" id="drift">0 ms</span>
+        </div>
+    </div>
+
+    <div class="volume-control">
+        <input type="range" class="volume-slider" id="volume" min="0" max="100" value="80">
+    </div>
+
+    <div class="sync-indicator">
+        <div class="sync-dot connecting" id="syncDot"></div>
+        <span id="syncStatus">Syncing...</span>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="/static/js/audio-player.js"></script>
+    <script>
+        const CHANNEL = '{{ channel }}';
+        
+        // Initialize audio player
+        const player = new TwinWavePlayer(CHANNEL);
+        
+        // UI Elements
+        const statusIcon = document.getElementById('statusIcon');
+        const statusText = document.getElementById('statusText');
+        const statusDetail = document.getElementById('statusDetail');
+        const latencyEl = document.getElementById('latency');
+        const bufferEl = document.getElementById('buffer');
+        const frameEl = document.getElementById('frame');
+        const driftEl = document.getElementById('drift');
+        const syncDot = document.getElementById('syncDot');
+        const syncStatus = document.getElementById('syncStatus');
+        const volumeSlider = document.getElementById('volume');
+        const visualizer = document.getElementById('visualizer');
+        const wakeLockBtn = document.getElementById('wakeLockBtn');
+
+        // Create visualizer bars
+        const numBars = 16;
+        for (let i = 0; i < numBars; i++) {
+            const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bar.setAttribute('class', 'visualizer-bar');
+            bar.setAttribute('x', i * (300 / numBars) + 2);
+            bar.setAttribute('width', (300 / numBars) - 4);
+            bar.setAttribute('y', 100);
+            bar.setAttribute('height', 0);
+            bar.setAttribute('rx', 2);
+            visualizer.appendChild(bar);
+        }
+
+        // Update status display
+        player.onStatusChange = (status, detail) => {
+            statusText.textContent = status;
+            statusDetail.textContent = detail || '';
+            
+            switch (status) {
+                case 'Connecting...':
+                    statusIcon.textContent = '📱';
+                    syncDot.className = 'sync-dot connecting';
+                    break;
+                case 'Connected':
+                    statusIcon.textContent = '✅';
+                    syncDot.className = 'sync-dot synced';
+                    break;
+                case 'Playing':
+                    statusIcon.textContent = '🔊';
+                    syncDot.className = 'sync-dot synced';
+                    break;
+                case 'Buffering':
+                    statusIcon.textContent = '⏳';
+                    syncDot.className = 'sync-dot connecting';
+                    break;
+                case 'Error':
+                    statusIcon.textContent = '❌';
+                    syncDot.className = 'sync-dot';
+                    break;
+            }
+        };
+
+        // Update stats display
+        player.onStatsUpdate = (stats) => {
+            latencyEl.textContent = stats.latency.toFixed(1) + ' ms';
+            bufferEl.textContent = stats.bufferSize.toFixed(1) + ' ms';
+            frameEl.textContent = '#' + stats.frameId;
+            driftEl.textContent = stats.drift.toFixed(1) + ' ms';
+            syncStatus.textContent = stats.synced ? 'In Sync' : 'Syncing...';
+        };
+
+        // Update visualizer
+        player.onVisualizerData = (data) => {
+            const bars = visualizer.querySelectorAll('.visualizer-bar');
+            const step = Math.floor(data.length / numBars);
+            
+            bars.forEach((bar, i) => {
+                const value = data[i * step] || 0;
+                const height = value * 100;
+                bar.setAttribute('y', 100 - height);
+                bar.setAttribute('height', height);
+            });
+        };
+
+        // Volume control
+        volumeSlider.addEventListener('input', (e) => {
+            player.setVolume(e.target.value / 100);
+        });
+
+        // Wake lock
+        let wakeLock = null;
+        wakeLockBtn.addEventListener('click', async () => {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockBtn.textContent = '🔓 Awake';
+                    wakeLockBtn.style.background = 'rgba(0, 255, 136, 0.2)';
+                } catch (e) {
+                    console.error('Wake lock failed:', e);
+                }
+            }
+        });
+
+        // Start player
+        player.connect();
+    </script>
+</body>
+</html>
