@@ -408,15 +408,38 @@ def stream_audio_loop():
 # ─────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    print("""
+    # SSL/TLS configuration via environment variables
+    ssl_cert = os.environ.get('SSL_CERT')
+    ssl_key = os.environ.get('SSL_KEY')
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Determine if SSL is enabled
+    ssl_context = None
+    protocol = 'http'
+    if ssl_cert and ssl_key:
+        if os.path.isfile(ssl_cert) and os.path.isfile(ssl_key):
+            ssl_context = (ssl_cert, ssl_key)
+            protocol = 'https'
+        else:
+            print(f"Warning: SSL certificate or key file not found.")
+            print(f"  SSL_CERT: {ssl_cert} (exists: {os.path.isfile(ssl_cert)})")
+            print(f"  SSL_KEY: {ssl_key} (exists: {os.path.isfile(ssl_key)})")
+            print("Falling back to HTTP mode.")
+    
+    print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║                    TwinWave Audio System                     ║
 ║           Dual Phone Theatre Audio Experience                ║
 ╠══════════════════════════════════════════════════════════════╣
+║  Server running on {protocol}://0.0.0.0:{port:<27}║
+║                                                              ║
 ║  1. Open /left on LEFT phone                                 ║
 ║  2. Open /right on RIGHT phone                               ║
 ║  3. Open /control on any device to manage                    ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
     
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    if ssl_context:
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, ssl_context=ssl_context)
+    else:
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)

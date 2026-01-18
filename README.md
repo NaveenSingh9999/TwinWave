@@ -144,6 +144,31 @@ The server will start on `http://0.0.0.0:5000`
 
 ## 🛠️ Configuration
 
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port number | `5000` |
+| `SSL_CERT` | Path to SSL certificate file (.pem) | None |
+| `SSL_KEY` | Path to SSL private key file (.pem) | None |
+| `SECRET_KEY` | Flask secret key | Auto-generated |
+
+### HTTPS/SSL Setup
+
+To enable HTTPS, set the `SSL_CERT` and `SSL_KEY` environment variables:
+
+```bash
+# Generate a self-signed certificate for testing
+openssl req -x509 -nodes -newkey rsa:2048 \
+  -keyout key.pem -out cert.pem -days 365 \
+  -subj "/CN=localhost"
+
+# Start server with HTTPS
+SSL_CERT=cert.pem SSL_KEY=key.pem python server.py
+```
+
+For production, use certificates from a trusted CA (e.g., Let's Encrypt).
+
 ### Audio Settings (in `server.py`)
 
 ```python
